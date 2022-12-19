@@ -2,14 +2,11 @@ package internal
 
 import (
 	// "fmt"
-	"github.com/d2jvkpn/go-web/pkg/wrap"
-)
 
-const (
-	App string = "authentication"
+	"go.uber.org/zap"
 )
 
 var (
-	_Logger       *wrap.Logger
-	_ConsulClient *wrap.ConsulClient
+	_Relase bool
+	_Logger *zap.Logger
 )

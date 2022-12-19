@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"authentication/internal"
+	"authentication/internal/settings"
 
 	"github.com/d2jvkpn/go-web/pkg/misc"
 	"github.com/d2jvkpn/go-web/pkg/wrap"
@@ -45,7 +46,10 @@ func main() {
 
 	flag.StringVar(&addr, "addr", ":20001", "grpc listening address")
 	flag.StringVar(&config, "config", "configs/local.yaml", "configuration path")
-	flag.StringVar(&consul, "consul", "configs/consul.yaml", "consul config path")
+	flag.StringVar(
+		&consul, "consul", "",
+		"consul config path, set -config to empty if you needs to read config from consul",
+	)
 	flag.BoolVar(&release, "release", false, "run in release mode")
 
 	flag.Usage = func() {
@@ -68,12 +72,7 @@ func main() {
 	meta["-release"] = release
 	meta["pid"] = os.Getpid()
 
-	if consul != "" {
-		err = internal.LoadWithConsul(consul, release)
-	} else {
-		err = internal.Load(config, release)
-	}
-	if err != nil {
+	if err = internal.Load(config, consul, release); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -81,6 +80,7 @@ func main() {
 
 	log.Printf(">>> Greet RPC server: %q\n", addr)
 	if shutdown, err = internal.ServeAsync(addr, meta, errch); err != nil {
+		settings.Shutdown()
 		log.Fatalln(err)
 	}
 
@@ -93,6 +93,9 @@ func main() {
 	}
 
 	if err != nil {
+		settings.Shutdown()
 		log.Fatalln(err)
+	} else {
+		log.Println("<<< Exit")
 	}
 }

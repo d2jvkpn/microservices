@@ -7,6 +7,7 @@ import (
 	. "authentication/proto"
 
 	. "github.com/stretchr/testify/require"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -28,6 +29,8 @@ func TestClient(t *testing.T) {
 
 	conn, err = grpc.Dial(testAddr,
 		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		inte.ClientUnary(),
 		inte.ClientStream(),
 	)
