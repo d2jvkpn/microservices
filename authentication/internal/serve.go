@@ -12,20 +12,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ServeAsync(addr string, meta map[string]any, errch chan<- error) (shutdown func(), err error) {
+func ServeAsync(listener net.Listener, meta map[string]any, errch chan<- error) (shutdown func()) {
 	var (
-		listener    net.Listener
 		grpcSrv     *grpc.Server
 		interceptor *models.Interceptor
 	)
 
 	_Logger = wrap.NewLogger("logs/authentication.log", zapcore.InfoLevel, 256, nil)
-	_Logger.Info("program", zap.Any("meta", meta))
-	_Logger.Info("Server is starting", zap.String("address", addr))
-
-	if listener, err = net.Listen("tcp", addr); err != nil {
-		return nil, err
-	}
+	_Logger.Info("Server is starting", zap.Any("meta", meta))
 
 	interceptor = models.NewInterceptor(_Logger.Named("grpc"))
 	grpcSrv = grpc.NewServer(
@@ -46,5 +40,5 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (shutdown 
 		_Logger.Warn("Server is shutting down")
 		grpcSrv.GracefulStop()
 		_Logger.Down()
-	}, nil
+	}
 }

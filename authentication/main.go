@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -31,6 +32,7 @@ func main() {
 		release      bool
 		addr, config string
 		err          error
+		listener     net.Listener
 		project      *viper.Viper
 		shutdown     func()
 	)
@@ -71,10 +73,11 @@ func main() {
 
 	errch, quit := make(chan error, 1), make(chan os.Signal, 1)
 
-	log.Printf(">>> Greet RPC server: %q\n", addr)
-	if shutdown, err = internal.ServeAsync(addr, meta, errch); err != nil {
+	if listener, err = net.Listen("tcp", addr); err != nil {
 		log.Fatalln(err)
 	}
+	log.Printf(">>> Greet RPC server: %q\n", addr)
+	shutdown = internal.ServeAsync(listener, meta, errch)
 
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	select {
