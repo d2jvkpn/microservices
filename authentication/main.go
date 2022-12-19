@@ -9,7 +9,13 @@ import (
 	"syscall"
 
 	"authentication/internal"
+
+	"github.com/d2jvkpn/go-web/pkg/misc"
 )
+
+func init() {
+	misc.RegisterLogPrinter()
+}
 
 func main() {
 	var (

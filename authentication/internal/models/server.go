@@ -99,6 +99,7 @@ func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err e
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "compare password failed",
 		}
+
 		return ans, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -109,6 +110,71 @@ func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err e
 func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 	ans *GetOrUpdateA, err error) {
 
-	ans = new(GetOrUpdateA)
-	return ans, nil
+	ans = &GetOrUpdateA{
+		Status: "",
+		Msg:    &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+	}
+
+	if in.Id == "" {
+		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid id"}
+		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
+	}
+
+	if in.Password != "" && in.Status != "" {
+		ans.Msg = &Msg{
+			Code: -1, HttpCode: http.StatusBadRequest,
+			Msg: "don't pass both password and status",
+		}
+		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
+	}
+
+	tx := _DB.WithContext(ctx).Table("users").Where("id = ?", in.Id).Limit(1)
+
+	switch {
+	case in.Password == "" && in.Status == "":
+		if err = tx.Pluck("status", &ans.Status).Error; err == nil {
+			break
+		}
+
+		if err.Error() == "record not found" {
+			ans.Msg.Code, ans.Msg.Msg = -2, "failed to retrieve"
+			ans.Msg.HttpCode = http.StatusNotFound
+			err = status.Errorf(codes.NotFound, err.Error())
+		} else {
+			ans.Msg.Code, ans.Msg.Msg = 1, "record not found"
+			ans.Msg.HttpCode = http.StatusInternalServerError
+			err = status.Errorf(codes.Internal, err.Error())
+		}
+	case in.Password != "":
+		var bts []byte
+		if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
+			ans.Msg = &Msg{
+				Code:     2,
+				HttpCode: http.StatusInternalServerError,
+				Msg:      "failed to generate from password",
+			}
+			err = status.Errorf(codes.Internal, err.Error())
+			break
+		}
+
+		if err = tx.Update("bah", string(bts)).Error; err != nil {
+			ans.Msg = &Msg{
+				Code:     3,
+				HttpCode: http.StatusInternalServerError,
+				Msg:      "failed to update",
+			}
+			err = status.Errorf(codes.Internal, err.Error())
+		}
+	default:
+		if err = tx.Update("status", in.Status).Error; err != nil {
+			ans.Msg = &Msg{
+				Code:     4,
+				HttpCode: http.StatusInternalServerError,
+				Msg:      "failed to update",
+			}
+			err = status.Errorf(codes.Internal, err.Error())
+		}
+	}
+
+	return ans, err
 }
