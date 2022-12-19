@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 		gua  *GetOrUpdateA
 	)
 
-	inte := NewInterceptor()
+	inte := NewClientInterceptor()
 
 	conn, err = grpc.Dial(testAddr,
 		grpc.WithInsecure(),

@@ -3,19 +3,21 @@ package models
 import (
 	"context"
 	// "fmt"
-	"log"
 	"time"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
-type Interceptor struct{}
+type Interceptor struct {
+	logger *zap.Logger
+}
 
-func NewInterceptor() *Interceptor {
-	return &Interceptor{}
+func NewInterceptor(logger *zap.Logger) *Interceptor {
+	return &Interceptor{logger}
 }
 
 func (inte *Interceptor) Unary() grpc.ServerOption {
@@ -26,18 +28,23 @@ func (inte *Interceptor) Unary() grpc.ServerOption {
 		var (
 			ok    bool
 			start time.Time
-			md    metadata.MD
+			// md    metadata.MD
 		)
 
 		start = time.Now()
 
-		if md, ok = metadata.FromIncomingContext(ctx); !ok {
+		if _, ok = metadata.FromIncomingContext(ctx); !ok {
 			return nil, status.Errorf(codes.Unauthenticated, "authorization token is not provided")
 		}
 
-		log.Println(">>> Unary:", info.FullMethod, md)
 		resp, err = handler(ctx, req)
-		log.Println("<<<", time.Since(start), err)
+		if err == nil {
+			inte.logger.Info(info.FullMethod, zap.Duration("latency", time.Since(start)))
+		} else {
+			inte.logger.Error(
+				info.FullMethod, zap.Duration("latency", time.Since(start)), zap.Any("error", err),
+			)
+		}
 
 		return resp, err
 	}
@@ -53,49 +60,26 @@ func (inte *Interceptor) Stream() grpc.ServerOption {
 		var (
 			ok    bool
 			start time.Time
-			md    metadata.MD
+			// md    metadata.MD
 		)
 
 		start = time.Now()
 
-		if md, ok = metadata.FromIncomingContext(ss.Context()); !ok {
+		if _, ok = metadata.FromIncomingContext(ss.Context()); !ok {
 			return status.Errorf(codes.Unauthenticated, "authorization token is not provided")
 		}
 
-		log.Println(">>> Stream:", info.FullMethod, md)
 		err = handler(srv, ss)
-		log.Println("<<<", time.Since(start), err)
+		if err == nil {
+			inte.logger.Info(info.FullMethod, zap.Duration("latency", time.Since(start)))
+		} else {
+			inte.logger.Error(
+				info.FullMethod, zap.Duration("latency", time.Since(start)), zap.Any("error", err),
+			)
+		}
 
 		return err
 	}
 
 	return grpc.StreamInterceptor(call)
-}
-
-func (inte *Interceptor) ClientUnary() grpc.DialOption {
-	call := func(
-		ctx context.Context, method string, req, reply any,
-		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
-	) (err error) {
-
-		log.Printf(">>> ClientUnaryUnary: %+v\n", method)
-		ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "abcdefg")
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
-
-	return grpc.WithUnaryInterceptor(call)
-}
-
-func (inte *Interceptor) ClientStream() grpc.DialOption {
-	call := func(
-		ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn,
-		method string, streamer grpc.Streamer, opts ...grpc.CallOption,
-	) (client grpc.ClientStream, err error) {
-
-		log.Printf(">>> ClientStream: %+v\n", method)
-		ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "abcdefg")
-		return streamer(ctx, desc, cc, method, opts...)
-	}
-
-	return grpc.WithStreamInterceptor(call)
 }

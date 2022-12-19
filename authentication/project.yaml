@@ -1,0 +1,10 @@
+project: https://github.com/d2jvkpn/microservices
+version: 0.1.0
+
+usage: |
+  authentication usage...
+
+config: |
+  database:
+    conn: postgres://USER:PASSWORD@IP:PORT
+    db: authentication

@@ -18,6 +18,8 @@ sed -i '/^\tmustEmbedUnimplemented/s#\t#\t// #' proto/auth_grpc.pb.go
 
 
 #### 2. install postgres
+# create a postgres instance by using docker:
+# https://github.com/d2jvkpn/deploy/tree/dev/productions/postgresql
 cargo install --version=0.6.2 sqlx-cli --no-default-features --features native-tls,postgres
 
 command -v sqlx
