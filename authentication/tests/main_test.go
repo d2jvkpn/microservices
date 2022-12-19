@@ -26,6 +26,8 @@ func TestClient(t *testing.T) {
 		cAns *CreateA
 		vIn  *VerifyQ
 		vAns *VerifyA
+		guq  *GetOrUpdateQ
+		gua  *GetOrUpdateA
 	)
 
 	conn, err = grpc.Dial(testAddr,
@@ -40,10 +42,19 @@ func TestClient(t *testing.T) {
 
 	cAns, err = client.Create(testCtx, cIn)
 	NoError(t, err)
-	fmt.Printf("~~~ %+v\n", cAns)
+	fmt.Printf("~~~ Create: %+v\n", cAns)
 
 	vIn = &VerifyQ{Id: cAns.Id, Password: cIn.Password}
 	vAns, err = client.Verify(testCtx, vIn)
 	NoError(t, err)
-	fmt.Printf("~~~ %+v\n", vAns)
+	fmt.Printf("~~~ Verify: %+v\n", vAns)
+
+	guq = &GetOrUpdateQ{Id: cAns.Id}
+	gua, err = client.GetOrUpdate(testCtx, guq)
+	NoError(t, err)
+	fmt.Printf("~~~ GetOrUpdate: %+v\n", gua)
+
+	guq = &GetOrUpdateQ{Id: cAns.Id, Status: "blocked"}
+	_, err = client.GetOrUpdate(testCtx, guq)
+	NoError(t, err)
 }
