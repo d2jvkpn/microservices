@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -31,8 +30,8 @@ func main() {
 	var (
 		release      bool
 		addr, config string
+		consul       string
 		err          error
-		listener     net.Listener
 		project      *viper.Viper
 		shutdown     func()
 	)
@@ -46,6 +45,7 @@ func main() {
 
 	flag.StringVar(&addr, "addr", ":20001", "grpc listening address")
 	flag.StringVar(&config, "config", "configs/local.yaml", "configuration path")
+	flag.StringVar(&consul, "consul", "configs/consul.yaml", "consul config path")
 	flag.BoolVar(&release, "release", false, "run in release mode")
 
 	flag.Usage = func() {
@@ -59,6 +59,7 @@ func main() {
 		flag.PrintDefaults()
 
 		fmt.Fprintf(output, "\nConfig template:\n```yaml\n%s```\n", project.GetString("config"))
+		fmt.Fprintf(output, "\nConsul template:\n```yaml\n%s```\n", wrap.ConsulConfigDemo())
 	}
 	flag.Parse()
 
@@ -67,17 +68,21 @@ func main() {
 	meta["-release"] = release
 	meta["pid"] = os.Getpid()
 
-	if err = internal.Load(config, release); err != nil {
+	if consul != "" {
+		err = internal.LoadWithConsul(consul, release)
+	} else {
+		err = internal.Load(config, release)
+	}
+	if err != nil {
 		log.Fatalln(err)
 	}
 
 	errch, quit := make(chan error, 1), make(chan os.Signal, 1)
 
-	if listener, err = net.Listen("tcp", addr); err != nil {
+	log.Printf(">>> Greet RPC server: %q\n", addr)
+	if shutdown, err = internal.ServeAsync(addr, meta, errch); err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf(">>> Greet RPC server: %q\n", addr)
-	shutdown = internal.ServeAsync(listener, meta, errch)
 
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	select {
