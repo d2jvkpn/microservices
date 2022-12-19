@@ -14,7 +14,6 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 mkdir proto && cd proto
 protoc --go_out=./  --go-grpc_out=./  proto/auth.proto
-
 sed -i '/^\tmustEmbedUnimplemented/s#\t#\t// #' proto/auth_grpc.pb.go
 
 

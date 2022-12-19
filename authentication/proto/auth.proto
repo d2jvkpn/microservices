@@ -15,9 +15,8 @@ message CreateQ {
 }
 
 message CreateA {
-	string id  = 1;
-	Msg    msg = 2;
-	
+	Msg    msg = 1;
+	string id  = 2;
 }
 
 message VerifyQ {
@@ -26,8 +25,8 @@ message VerifyQ {
 }
 
 message VerifyA {
-	string status = 1;
-	Msg    msg    = 2;
+	Msg    msg    = 1;
+	string status = 2;
 }
 
 message GetOrUpdateQ {
@@ -37,8 +36,8 @@ message GetOrUpdateQ {
 }
 
 message GetOrUpdateA {
-	string status = 1;
-	Msg    msg    = 2;
+	Msg    msg    = 1;
+	string status = 2;
 }
 
 service AuthService {
