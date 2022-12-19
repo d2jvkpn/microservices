@@ -17,3 +17,4 @@ configs/
 vendor/
 wk_*/
 logs/
+target/

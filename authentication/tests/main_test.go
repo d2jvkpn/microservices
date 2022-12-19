@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"context"
@@ -22,8 +22,10 @@ func TestClient(t *testing.T) {
 		conn   *grpc.ClientConn
 		client AuthServiceClient
 
-		in  *CreateQ
-		ans *CreateA
+		cIn  *CreateQ
+		cAns *CreateA
+		vIn  *VerifyQ
+		vAns *VerifyA
 	)
 
 	conn, err = grpc.Dial(testAddr,
@@ -34,9 +36,14 @@ func TestClient(t *testing.T) {
 	NoError(t, err)
 
 	client = NewAuthServiceClient(conn)
-	in = &CreateQ{Password: "123456"}
+	cIn = &CreateQ{Password: "123456"}
 
-	ans, err = client.Create(testCtx, in)
+	cAns, err = client.Create(testCtx, cIn)
 	NoError(t, err)
-	fmt.Printf("~~~ %+v\n", ans)
+	fmt.Printf("~~~ %+v\n", cAns)
+
+	vIn = &VerifyQ{Id: cAns.Id, Password: cIn.Password}
+	vAns, err = client.Verify(testCtx, vIn)
+	NoError(t, err)
+	fmt.Printf("~~~ %+v\n", vAns)
 }

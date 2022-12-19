@@ -22,6 +22,12 @@ func NewServer() *Server {
 	return &Server{}
 }
 
+type User struct {
+	Id     string `gorm:"column:id"`
+	Bah    string `gorm:"column:bah"`
+	Status string `gorm:"column:status"`
+}
+
 func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err error) {
 	var (
 		bts []byte
@@ -63,7 +69,40 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 }
 
 func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err error) {
-	ans = new(VerifyA)
+	if in.Id == "" || in.Password == "" {
+		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid id or password"}
+		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
+	}
+
+	var user User
+
+	ans = &VerifyA{
+		Status: "",
+		Msg:    &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+	}
+
+	err = _DB.WithContext(ctx).Table("users").
+		Where("id = ?", in.Id).Limit(1).
+		Select("bah, status").Find(&user).Error
+	if err != nil {
+		ans.Msg = &Msg{
+			Code:     1,
+			HttpCode: http.StatusInternalServerError,
+			Msg:      "failed to retrieve",
+		}
+		return ans, status.Errorf(codes.Internal, err.Error())
+	}
+
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Bah), []byte(in.Password)); err != nil {
+		ans.Msg = &Msg{
+			Code:     2,
+			HttpCode: http.StatusInternalServerError,
+			Msg:      "compare password failed",
+		}
+		return ans, status.Errorf(codes.Internal, err.Error())
+	}
+
+	ans.Status = user.Status
 	return ans, nil
 }
 
