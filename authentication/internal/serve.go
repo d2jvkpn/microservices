@@ -11,17 +11,19 @@ import (
 
 func ServeAsync(addr string, release bool, errch chan<- error) (shutdown func(), err error) {
 	var (
-		listener net.Listener
-		grpcSrv  *grpc.Server
+		listener    net.Listener
+		grpcSrv     *grpc.Server
+		interceptor *models.Interceptor
 	)
 
 	if listener, err = net.Listen("tcp", addr); err != nil {
 		return nil, err
 	}
 
+	interceptor = models.NewInterceptor()
 	grpcSrv = grpc.NewServer(
-	// grpc.UnaryInterceptor(unaryServerInterceptor),
-	// grpc.StreamInterceptor(streamServerInterceptor),
+		interceptor.Unary(),
+		interceptor.Stream(),
 	)
 
 	srv := models.NewServer()

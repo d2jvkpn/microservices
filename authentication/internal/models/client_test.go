@@ -1,7 +1,6 @@
-package tests
+package models
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -9,11 +8,6 @@ import (
 
 	. "github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-)
-
-var (
-	testAddr string          = "127.0.0.1:20001"
-	testCtx  context.Context = context.TODO()
 )
 
 func TestClient(t *testing.T) {
@@ -30,10 +24,12 @@ func TestClient(t *testing.T) {
 		gua  *GetOrUpdateA
 	)
 
+	inte := NewInterceptor()
+
 	conn, err = grpc.Dial(testAddr,
 		grpc.WithInsecure(),
-		// grpc.WithUnaryInterceptor(?grpc.UnaryClientInterceptor),
-		// grpc.WithStreamInterceptor(?grpc.StreamClientInterceptor),
+		inte.ClientUnary(),
+		inte.ClientStream(),
 	)
 	NoError(t, err)
 

@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	testAddr string          = "127.0.0.1:20001"
 	testFlag *flag.FlagSet   = nil
 	testCtx  context.Context = context.Background()
 )

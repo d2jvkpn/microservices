@@ -120,17 +120,15 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
 
-	if in.Password != "" && in.Status != "" {
+	tx := _DB.WithContext(ctx).Table("users").Where("id = ?", in.Id).Limit(1)
+
+	switch {
+	case in.Password != "" && in.Status != "":
 		ans.Msg = &Msg{
 			Code: -1, HttpCode: http.StatusBadRequest,
 			Msg: "don't pass both password and status",
 		}
-		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
-	}
-
-	tx := _DB.WithContext(ctx).Table("users").Where("id = ?", in.Id).Limit(1)
-
-	switch {
+		err = status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	case in.Password == "" && in.Status == "":
 		if err = tx.Pluck("status", &ans.Status).Error; err == nil {
 			break
@@ -165,7 +163,7 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 			}
 			err = status.Errorf(codes.Internal, err.Error())
 		}
-	default:
+	default: // status != ""
 		if err = tx.Update("status", in.Status).Error; err != nil {
 			ans.Msg = &Msg{
 				Code:     4,
