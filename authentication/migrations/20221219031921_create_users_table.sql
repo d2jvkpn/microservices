@@ -10,13 +10,13 @@ $$LANGUAGE plpgsql;
 -- drop function update_now cascade;
 
 CREATE TABLE users (
-  -- id UUID DEFAULT uuid_generate_v4(), -- gen_random_uuid()
-  id         char(32) NOT NULL,
+  id         UUID DEFAULT gen_random_uuid(),
   PRIMARY    KEY (id),
-  bah        VARCHAR(72)  NOT NULL,
-  status     VARCHAR(128) NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  bah     VARCHAR(72)  NOT NULL,
+  status  user_status  NOT NULL DEFAULT 'ok'
 );
 
 CREATE TRIGGER updated_at BEFORE INSERT OR UPDATE ON users

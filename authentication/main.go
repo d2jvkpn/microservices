@@ -12,22 +12,36 @@ import (
 	"authentication/internal/models"
 	. "authentication/proto"
 
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	// "google.golang.org/grpc/codes"
-	// "google.golang.org/grpc/metadata"
-	// "google.golang.org/grpc/status"
 )
 
 func main() {
 	var (
-		addr     string
-		err      error
-		listener net.Listener
-		grpcSrv  *grpc.Server
+		release      bool
+		addr, config string
+		err          error
+		vc           *viper.Viper
+		listener     net.Listener
+		grpcSrv      *grpc.Server
 	)
 
 	flag.StringVar(&addr, "addr", ":20001", "grpc listening address")
+	flag.StringVar(&config, "config", "configs/local.yaml", "configuration path")
+	flag.BoolVar(&release, "release", false, "run in release mode")
 	flag.Parse()
+
+	vc = viper.New()
+	vc.SetConfigName("authentication config")
+	vc.SetConfigFile(config)
+	if err = vc.ReadInConfig(); err != nil {
+		log.Fatalln(err)
+	}
+
+	dsn := vc.GetString("database.conn") + "/" + vc.GetString("database.db")
+	if _, err = models.Connect(dsn, !release); err != nil {
+		log.Fatalln(err)
+	}
 
 	if listener, err = net.Listen("tcp", addr); err != nil {
 		log.Fatalln(err)

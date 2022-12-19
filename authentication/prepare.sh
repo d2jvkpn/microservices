@@ -23,16 +23,19 @@ cargo install --version=0.6.2 sqlx-cli --no-default-features --features native-t
 
 command -v sqlx
 
-export DATABASE_URL=postgres://hello:world@127.0.0.1:5432/users
+export DATABASE_URL=postgres://hello:world@127.0.0.1:5432/authentication
 echo "export DATABASE_URL=$DATABASE_URL" >> .env
 
 sqlx database create
+# sqlx database drop
 
 # psql --host 127.0.0.1 --username hello --port 5432 --password --dbname users -c 'SELECT current_database()'
 
 
+#### 3. migrations
 sqlx migrate add create_users_table
 sql_file=$(ls migrations/*_create_users_table.sql | tail -n 1)
+ls 
 
 cat >> $sql_file <<EOF
 CREATE TYPE user_status AS ENUM('ok', 'blocked', 'deleted');
@@ -46,13 +49,13 @@ END;
 -- drop function update_now cascade;
 
 CREATE TABLE users (
-  -- id UUID DEFAULT uuid_generate_v4(), -- gen_random_uuid()
-  id         char(32) NOT NULL,
+  id         UUID DEFAULT gen_random_uuid(),
   PRIMARY    KEY (id),
-  bah        VARCHAR(72)  NOT NULL,
-  status     VARCHAR(128) NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  bah     VARCHAR(72)  NOT NULL,
+  status  user_status  NOT NULL DEFAULT 'ok'
 );
 
 CREATE TRIGGER updated_at BEFORE INSERT OR UPDATE ON users
