@@ -97,20 +97,40 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 	//	log.Println("traceId", span.SpanContext().TraceID().String())
 	//	log.Println("spanId", span.SpanContext().SpanID().String())
 
+	if bts, err = createGenerateFromPassword(ctx, in.Password, ans); err != nil {
+		return nil, err
+	}
+
+	if err = createInsert(ctx, bts, ans); err != nil {
+		return nil, err
+	}
+
+	return ans, nil
+}
+
+func createGenerateFromPassword(ctx context.Context, password string, ans *CreateA) (
+	bts []byte, err error) {
 	tracer := otel.Tracer(settings.App)
-	_, span1 := tracer.Start(ctx, "bcrypt.GenerateFromPassword")
-	if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
+	_, span := tracer.Start(ctx, "bcrypt.GenerateFromPassword")
+	defer span.End()
+
+	if bts, err = bcrypt.GenerateFromPassword([]byte(password), _BcryptCost); err != nil {
 		ans.Msg = &Msg{
 			Code:     1,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to generate from password",
 		}
-		span1.End()
-		return ans, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-	span1.End()
 
-	_, span2 := tracer.Start(ctx, "postgres.Insert")
+	return bts, nil
+}
+
+func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
+	tracer := otel.Tracer(settings.App)
+	_, span := tracer.Start(ctx, "postgres.Insert")
+	defer span.End()
+
 	err = _DB.WithContext(ctx).
 		Raw("insert into users (bah) values (?) returning id", string(bts)).
 		Pluck("id", &ans.Id).Error
@@ -120,17 +140,16 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to insert a record",
 		}
-		span2.End()
-		return ans, status.Errorf(codes.Internal, err.Error())
+
+		return status.Errorf(codes.Internal, err.Error())
 	}
 
 	opts := []trace.EventOption{
 		trace.WithAttributes(attribute.String("id", ans.Id)),
 	}
-	span2.AddEvent("successfully finished Create", opts...)
-	span2.End()
+	span.AddEvent("successfully finished Create", opts...)
 
-	return ans, nil
+	return nil
 }
 
 func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err error) {
