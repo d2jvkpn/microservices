@@ -15,12 +15,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type Interceptor struct {
-	logger *zap.Logger
-}
+type Interceptor struct{}
 
-func NewInterceptor(logger *zap.Logger) *Interceptor {
-	return &Interceptor{logger}
+func NewInterceptor() *Interceptor {
+	return &Interceptor{}
 }
 
 func (inte *Interceptor) Unary() grpc.UnaryServerInterceptor {
@@ -39,16 +37,16 @@ func (inte *Interceptor) Unary() grpc.UnaryServerInterceptor {
 			return nil, status.Errorf(codes.Unauthenticated, "authorization token is not provided")
 		}
 
-		logger := settings.Logger.Named("trace")
+		logger := settings.Logger.Named("interceptor")
 		logger.Debug("models.Interceptor.Unary", zap.Any("md", md))
 
 		resp, err = handler(ctx, req)
 		latency := fmt.Sprintf("%s", time.Since(start))
 
 		if err == nil {
-			inte.logger.Info(info.FullMethod, zap.String("latency", latency))
+			logger.Info(info.FullMethod, zap.String("latency", latency))
 		} else {
-			inte.logger.Error(
+			logger.Error(
 				info.FullMethod, zap.String("latency", latency), zap.Any("error", err),
 			)
 		}
@@ -67,22 +65,25 @@ func (inte *Interceptor) Stream() grpc.StreamServerInterceptor {
 		var (
 			ok    bool
 			start time.Time
-			// md    metadata.MD
+			md    metadata.MD
 		)
 
 		start = time.Now()
 
-		if _, ok = metadata.FromIncomingContext(ss.Context()); !ok {
+		if md, ok = metadata.FromIncomingContext(ss.Context()); !ok {
 			return status.Errorf(codes.Unauthenticated, "authorization token is not provided")
 		}
+
+		logger := settings.Logger.Named("interceptor")
+		logger.Debug("models.Interceptor.Stream", zap.Any("md", md))
 
 		err = handler(srv, ss)
 		latency := fmt.Sprintf("%s", time.Since(start))
 
 		if err == nil {
-			inte.logger.Info(info.FullMethod, zap.String("latency", latency))
+			logger.Info(info.FullMethod, zap.String("latency", latency))
 		} else {
-			inte.logger.Error(
+			logger.Error(
 				info.FullMethod, zap.String("latency", latency), zap.Any("error", err),
 			)
 		}

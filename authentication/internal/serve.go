@@ -23,9 +23,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// logger => database => tracing => grpc.Server => service registry
+// database => tracing => grpc.Server => service registry => logger
 func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error) {
-
 	var (
 		enableOtel   bool
 		enableConsul bool
@@ -33,36 +32,32 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 		listener     net.Listener
 	)
 
-	if _Relase {
-		settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.InfoLevel, 256, nil)
-	} else {
-		settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.DebugLevel, 256, nil)
-	}
-	_Logger = settings.Logger.Named("server")
-
-	// setup
+	// database
 	dsn := settings.Config.GetString("database.conn") + "/" +
 		settings.Config.GetString("database.db")
 
-	if _DB, err = models.Connect(dsn, !_Relase); err != nil {
+	if _DB, err = models.Connect(dsn, !settings.Release); err != nil {
 		return err
 	}
 
+	// opentelemetry
 	enableOtel = settings.Config.GetBool("opentelemetry.enable")
 	if enableOtel {
-		if _CloseTracer, err = loadOtel(settings.Config); err != nil {
+		if _CloseTracer, err = setupOtel(settings.Config); err != nil {
 			return err
 		}
 	}
 
+	// grpc
 	if listener, err = net.Listen("tcp", addr); err != nil {
 		return err
 	}
 
-	_GrpcServer = grpc.NewServer(loadInterceptors(enableOtel)...)
+	_GrpcServer = grpc.NewServer(setupInterceptors(enableOtel)...)
 	srv := models.NewServer()
 	RegisterAuthServiceServer(_GrpcServer, srv)
 
+	// consul
 	enableConsul = _ConsulClient != nil && _ConsulClient.Registry
 	if enableConsul {
 		if port, err = misc.PortFromAddr(addr); err != nil {
@@ -74,6 +69,14 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 		}
 	}
 
+	// logger
+	if settings.Release {
+		settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.InfoLevel, 256, nil)
+	} else {
+		settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.DebugLevel, 256, nil)
+	}
+	_Logger = settings.Logger.Named("server")
+
 	_Logger.Info(
 		"Server is starting",
 		zap.Bool("enableOtel", enableOtel),
@@ -81,6 +84,7 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 		zap.Any("meta", meta),
 	)
 
+	// serve
 	go func() {
 		err := _GrpcServer.Serve(listener)
 		errch <- err
@@ -89,15 +93,15 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 	return nil
 }
 
-func loadInterceptors(enableOtel bool) []grpc.ServerOption {
-	interceptor := models.NewInterceptor(_Logger.Named("grpc"))
+func setupInterceptors(enableOtel bool) []grpc.ServerOption {
+	interceptor := models.NewInterceptor()
 
 	uIntes := make([]grpc.UnaryServerInterceptor, 0, 2)
 	sIntes := make([]grpc.StreamServerInterceptor, 0, 2)
 
 	if enableOtel {
-		uIntes = append(uIntes, otelgrpc.UnaryServerInterceptor())
-		sIntes = append(sIntes, otelgrpc.StreamServerInterceptor())
+		uIntes = append(uIntes, otelgrpc.UnaryServerInterceptor( /*opts ...Option*/ ))
+		sIntes = append(sIntes, otelgrpc.StreamServerInterceptor( /*opts ...Option*/ ))
 	}
 	// grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
 	// grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
@@ -109,7 +113,7 @@ func loadInterceptors(enableOtel bool) []grpc.ServerOption {
 	return []grpc.ServerOption{grpc.UnaryInterceptor(uInte), grpc.StreamInterceptor(sInte)}
 }
 
-func loadOtel(vc *viper.Viper) (closeTracer func(), err error) {
+func setupOtel(vc *viper.Viper) (closeTracer func(), err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -124,7 +128,7 @@ func loadOtel(vc *viper.Viper) (closeTracer func(), err error) {
 	return closeTracer, nil
 }
 
-// service registry =>  grpc.Server => tracing => database => logger
+// service registry => grpc.Server => tracing => database => logger
 func Shutdown() {
 	var err error
 
@@ -142,7 +146,7 @@ func Shutdown() {
 	}
 
 	if _CloseTracer != nil {
-		_Logger.Info("close opentelemetry tracer")
+		_Logger.Info("close tracer")
 		_CloseTracer()
 	}
 

@@ -11,7 +11,6 @@ import (
 )
 
 var (
-	_Relase       bool
 	_Logger       *zap.Logger
 	_DB           *gorm.DB
 	_ConsulClient *wrap.ConsulClient

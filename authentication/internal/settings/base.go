@@ -14,9 +14,10 @@ const (
 )
 
 var (
-	Logger *wrap.Logger
-	Rng    *rand.Rand
-	Config *viper.Viper
+	Release bool
+	Logger  *wrap.Logger
+	Rng     *rand.Rand
+	Config  *viper.Viper
 )
 
 func init() {

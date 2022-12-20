@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func TestClient(t *testing.T) {
 
 	enableOtel = testConfig.GetBool("opentelemetry.enable")
 	if enableOtel {
-		if closeTracer, err = testLoadOtel(testConfig); err != nil {
+		if closeTracer, err = testSetupOtel(testConfig); err != nil {
 			return
 		}
 		defer closeTracer()
@@ -45,10 +46,10 @@ func TestClient(t *testing.T) {
 
 	conn, err = grpc.Dial(testAddr,
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-		inte.ClientUnary(),
-		inte.ClientStream(),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor( /*opts ...Option*/ )),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor( /*opts ...Option*/ )),
+		inte.ClientUnary("authorization", "abcdefg"),
+		inte.ClientStream("authorization", "abcdefg"),
 	)
 	NoError(t, err)
 
@@ -57,24 +58,24 @@ func TestClient(t *testing.T) {
 
 	cAns, err = client.Create(testCtx, cIn)
 	NoError(t, err)
-	fmt.Printf("~~~ Create: %+v\n", cAns)
+	log.Printf("~~~ Create: %+v\n", cAns)
 
 	vIn = &VerifyQ{Id: cAns.Id, Password: cIn.Password}
 	vAns, err = client.Verify(testCtx, vIn)
 	NoError(t, err)
-	fmt.Printf("~~~ Verify: %+v\n", vAns)
+	log.Printf("~~~ Verify: %+v\n", vAns)
 
 	guq = &GetOrUpdateQ{Id: cAns.Id}
 	gua, err = client.GetOrUpdate(testCtx, guq)
 	NoError(t, err)
-	fmt.Printf("~~~ GetOrUpdate: %+v\n", gua)
+	log.Printf("~~~ GetOrUpdate: %+v\n", gua)
 
 	guq = &GetOrUpdateQ{Id: cAns.Id, Status: "blocked"}
 	_, err = client.GetOrUpdate(testCtx, guq)
 	NoError(t, err)
 }
 
-func testLoadOtel(vc *viper.Viper) (closeTracer func(), err error) {
+func testSetupOtel(vc *viper.Viper) (closeTracer func(), err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

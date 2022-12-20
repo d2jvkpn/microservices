@@ -9,7 +9,6 @@ import (
 )
 
 func Load(config string, consul string, release bool) (err error) {
-	// config
 	if config == "" && consul == "" {
 		return fmt.Errorf("both config and  consul are empty")
 	}
@@ -28,6 +27,8 @@ func Load(config string, consul string, release bool) (err error) {
 	if err != nil {
 		return err
 	}
+
+	settings.Release = release
 
 	return nil
 }

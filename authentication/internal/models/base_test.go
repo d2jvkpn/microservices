@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 
 	testFlag.Parse(flag.Args())
 	fmt.Printf("~~~ load config %s\n", config)
+	misc.RegisterLogPrinter()
 
 	defer func() {
 		if err != nil {
