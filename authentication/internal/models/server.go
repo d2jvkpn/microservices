@@ -33,6 +33,46 @@ type User struct {
 	Status string `gorm:"column:status"`
 }
 
+func (srv *Server) Create_v0(ctx context.Context, in *CreateQ) (ans *CreateA, err error) {
+	var (
+		bts []byte
+	)
+
+	ans = &CreateA{
+		Id:  "",
+		Msg: &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+	}
+
+	if in.Password == "" {
+		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid password"}
+		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
+	}
+	// TODO: password validation
+
+	if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
+		ans.Msg = &Msg{
+			Code:     1,
+			HttpCode: http.StatusInternalServerError,
+			Msg:      "failed to generate from password",
+		}
+		return ans, status.Errorf(codes.Internal, err.Error())
+	}
+
+	err = _DB.WithContext(ctx).
+		Raw("insert into users (bah) values (?) returning id", string(bts)).
+		Pluck("id", &ans.Id).Error
+	if err != nil {
+		ans.Msg = &Msg{
+			Code:     2,
+			HttpCode: http.StatusInternalServerError,
+			Msg:      "failed to insert a record",
+		}
+		return ans, status.Errorf(codes.Internal, err.Error())
+	}
+
+	return ans, nil
+}
+
 func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err error) {
 	var (
 		bts []byte
