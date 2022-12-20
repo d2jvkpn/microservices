@@ -27,9 +27,10 @@ import (
 func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error) {
 
 	var (
-		enableOtel bool
-		port       int
-		listener   net.Listener
+		enableOtel   bool
+		enableConsul bool
+		port         int
+		listener     net.Listener
 	)
 
 	if _Relase {
@@ -62,7 +63,8 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 	srv := models.NewServer()
 	RegisterAuthServiceServer(_GrpcServer, srv)
 
-	if _ConsulClient != nil && _ConsulClient.Registry {
+	enableConsul = _ConsulClient != nil && _ConsulClient.Registry
+	if enableConsul {
 		if port, err = misc.PortFromAddr(addr); err != nil {
 			return err
 		}
@@ -72,7 +74,13 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 		}
 	}
 
-	_Logger.Info("Server is starting", zap.Any("meta", meta))
+	_Logger.Info(
+		"Server is starting",
+		zap.Bool("enableOtel", enableOtel),
+		zap.Bool("enableConsul", enableConsul),
+		zap.Any("meta", meta),
+	)
+
 	go func() {
 		err := _GrpcServer.Serve(listener)
 		errch <- err

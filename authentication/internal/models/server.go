@@ -96,12 +96,15 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(commonLabels...)
 
-	logger := settings.Logger.Named("trace")
-	logger.Debug("Create",
-		zap.String("traceId", span.SpanContext().TraceID().String()),
-		zap.String("spanId", span.SpanContext().SpanID().String()),
-		zap.Any("labels", commonLabels),
-	)
+	if traceId := span.SpanContext().TraceID(); traceId.IsValid() {
+		logger := settings.Logger.Named("trace")
+
+		logger.Debug("models.Create",
+			zap.String("traceId", traceId.String()),
+			zap.String("spanId", span.SpanContext().SpanID().String()),
+			zap.Any("labels", commonLabels),
+		)
+	}
 
 	if bts, err = createGenerateFromPassword(ctx, in.Password, ans); err != nil {
 		return nil, err
@@ -120,11 +123,13 @@ func createGenerateFromPassword(ctx context.Context, password string, ans *Creat
 	_, span := tracer.Start(ctx, "bcrypt.GenerateFromPassword")
 	defer span.End()
 
-	logger := settings.Logger.Named("trace")
-	logger.Debug("Create",
-		zap.String("traceId", span.SpanContext().TraceID().String()),
-		zap.String("spanId", span.SpanContext().SpanID().String()),
-	)
+	if traceId := span.SpanContext().TraceID(); traceId.IsValid() {
+		logger := settings.Logger.Named("trace")
+		logger.Debug("models.createGenerateFromPassword",
+			zap.String("traceId", traceId.String()),
+			zap.String("spanId", span.SpanContext().SpanID().String()),
+		)
+	}
 
 	if bts, err = bcrypt.GenerateFromPassword([]byte(password), _BcryptCost); err != nil {
 		ans.Msg = &Msg{
@@ -143,11 +148,13 @@ func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
 	_, span := tracer.Start(ctx, "postgres.Insert")
 	defer span.End()
 
-	logger := settings.Logger.Named("trace")
-	logger.Debug("Create",
-		zap.String("traceId", span.SpanContext().TraceID().String()),
-		zap.String("spanId", span.SpanContext().SpanID().String()),
-	)
+	if traceId := span.SpanContext().TraceID(); traceId.IsValid() {
+		logger := settings.Logger.Named("trace")
+		logger.Debug("models.createInsert",
+			zap.String("traceId", traceId.String()),
+			zap.String("spanId", span.SpanContext().SpanID().String()),
+		)
+	}
 
 	err = _DB.WithContext(ctx).
 		Raw("insert into users (bah) values (?) returning id", string(bts)).

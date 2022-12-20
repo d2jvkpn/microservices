@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"authentication/internal/settings"
+
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
@@ -29,13 +31,16 @@ func (inte *Interceptor) Unary() grpc.UnaryServerInterceptor {
 		var (
 			ok    bool
 			start time.Time
-			// md    metadata.MD
+			md    metadata.MD
 		)
 
 		start = time.Now()
-		if _, ok = metadata.FromIncomingContext(ctx); !ok {
+		if md, ok = metadata.FromIncomingContext(ctx); !ok {
 			return nil, status.Errorf(codes.Unauthenticated, "authorization token is not provided")
 		}
+
+		logger := settings.Logger.Named("trace")
+		logger.Debug("models.Interceptor.Unary", zap.Any("md", md))
 
 		resp, err = handler(ctx, req)
 		latency := fmt.Sprintf("%s", time.Since(start))
