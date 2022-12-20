@@ -1,8 +1,0 @@
-opentelemetry:
-   enable: false
-   address: 127.0.0.1:4317
-   secure: false
-
-database:
-  conn: postgres://hello:world@127.0.0.1:5432
-  db: authentication
