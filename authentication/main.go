@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"authentication/internal"
-	"authentication/internal/settings"
 
 	"github.com/d2jvkpn/go-web/pkg/misc"
 	"github.com/d2jvkpn/go-web/pkg/wrap"
@@ -34,7 +33,6 @@ func main() {
 		consul       string
 		err          error
 		project      *viper.Viper
-		shutdown     func()
 	)
 
 	if project, err = wrap.ConfigFromBytes(_Project, "yaml"); err != nil {
@@ -88,8 +86,8 @@ func main() {
 	errch, quit := make(chan error, 1), make(chan os.Signal, 1)
 
 	log.Printf(">>> Greet RPC server: %q\n", addr)
-	if shutdown, err = internal.ServeAsync(addr, meta, errch); err != nil {
-		settings.Shutdown()
+	if err = internal.ServeAsync(addr, meta, errch); err != nil {
+		internal.Shutdown()
 		log.Fatalln(err)
 	}
 
@@ -97,12 +95,12 @@ func main() {
 	select {
 	case err = <-errch:
 	case <-quit:
-		shutdown()
+		fmt.Println("")
+		internal.Shutdown()
 		err = <-errch
 	}
 
 	if err != nil {
-		settings.Shutdown()
 		log.Fatalln(err)
 	} else {
 		log.Println("<<< Exit")

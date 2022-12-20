@@ -15,13 +15,13 @@ func Load(config string, consul string, release bool) (err error) {
 	}
 
 	if consul != "" {
-		if settings.ConsulClient, err = wrap.NewConsulClient(consul, "consul"); err != nil {
+		if _ConsulClient, err = wrap.NewConsulClient(consul, "consul"); err != nil {
 			return err
 		}
 	}
 
 	if config == "" {
-		settings.Config, err = settings.ConsulClient.GetKV(settings.App)
+		settings.Config, err = _ConsulClient.GetKV(settings.App)
 	} else {
 		settings.Config, err = wrap.OpenConfig(config)
 	}
