@@ -33,17 +33,18 @@ func (inte *Interceptor) Unary() grpc.UnaryServerInterceptor {
 		)
 
 		start = time.Now()
-
 		if _, ok = metadata.FromIncomingContext(ctx); !ok {
 			return nil, status.Errorf(codes.Unauthenticated, "authorization token is not provided")
 		}
 
 		resp, err = handler(ctx, req)
+		latency := fmt.Sprintf("%s", time.Since(start))
+
 		if err == nil {
-			inte.logger.Info(info.FullMethod, zap.Duration("latency", time.Since(start)))
+			inte.logger.Info(info.FullMethod, zap.String("latency", latency))
 		} else {
 			inte.logger.Error(
-				info.FullMethod, zap.Duration("latency", time.Since(start)), zap.Any("error", err),
+				info.FullMethod, zap.String("latency", latency), zap.Any("error", err),
 			)
 		}
 

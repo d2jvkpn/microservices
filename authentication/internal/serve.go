@@ -33,7 +33,11 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (
 		closeTracer func()
 	)
 
-	settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.InfoLevel, 256, nil)
+	if _Relase {
+		settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.InfoLevel, 256, nil)
+	} else {
+		settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.DebugLevel, 256, nil)
+	}
 	_Logger = settings.Logger.Named("server")
 
 	enableOtel = settings.Config.GetBool("opentelemetry.enable")

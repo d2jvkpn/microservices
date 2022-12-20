@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
 	"google.golang.org/grpc/codes"
@@ -94,8 +95,13 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 	}
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(commonLabels...)
-	//	log.Println("traceId", span.SpanContext().TraceID().String())
-	//	log.Println("spanId", span.SpanContext().SpanID().String())
+
+	logger := settings.Logger.Named("trace")
+	logger.Debug("Create",
+		zap.String("traceId", span.SpanContext().TraceID().String()),
+		zap.String("spanId", span.SpanContext().SpanID().String()),
+		zap.Any("labels", commonLabels),
+	)
 
 	if bts, err = createGenerateFromPassword(ctx, in.Password, ans); err != nil {
 		return nil, err
@@ -114,6 +120,12 @@ func createGenerateFromPassword(ctx context.Context, password string, ans *Creat
 	_, span := tracer.Start(ctx, "bcrypt.GenerateFromPassword")
 	defer span.End()
 
+	logger := settings.Logger.Named("trace")
+	logger.Debug("Create",
+		zap.String("traceId", span.SpanContext().TraceID().String()),
+		zap.String("spanId", span.SpanContext().SpanID().String()),
+	)
+
 	if bts, err = bcrypt.GenerateFromPassword([]byte(password), _BcryptCost); err != nil {
 		ans.Msg = &Msg{
 			Code:     1,
@@ -130,6 +142,12 @@ func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
 	tracer := otel.Tracer(settings.App)
 	_, span := tracer.Start(ctx, "postgres.Insert")
 	defer span.End()
+
+	logger := settings.Logger.Named("trace")
+	logger.Debug("Create",
+		zap.String("traceId", span.SpanContext().TraceID().String()),
+		zap.String("spanId", span.SpanContext().SpanID().String()),
+	)
 
 	err = _DB.WithContext(ctx).
 		Raw("insert into users (bah) values (?) returning id", string(bts)).
