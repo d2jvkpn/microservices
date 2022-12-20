@@ -5,9 +5,14 @@ import (
 	// "fmt"
 	"net/http"
 
+	"authentication/internal/settings"
 	. "authentication/proto"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/crypto/bcrypt"
+
 	"google.golang.org/grpc/codes"
 	// "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -44,15 +49,28 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 	}
 	// TODO: password validation
 
+	commonLabels := []attribute.KeyValue{
+		attribute.Int("password.Length", len(in.Password)),
+	}
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(commonLabels...)
+	//	log.Println("traceId", span.SpanContext().TraceID().String())
+	//	log.Println("spanId", span.SpanContext().SpanID().String())
+
+	tracer := otel.Tracer(settings.App)
+	_, span1 := tracer.Start(ctx, "bcrypt.GenerateFromPassword")
 	if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
 		ans.Msg = &Msg{
 			Code:     1,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to generate from password",
 		}
+		span1.End()
 		return ans, status.Errorf(codes.Internal, err.Error())
 	}
+	span1.End()
 
+	_, span2 := tracer.Start(ctx, "postgres.Insert")
 	err = _DB.WithContext(ctx).
 		Raw("insert into users (bah) values (?) returning id", string(bts)).
 		Pluck("id", &ans.Id).Error
@@ -62,8 +80,15 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to insert a record",
 		}
+		span2.End()
 		return ans, status.Errorf(codes.Internal, err.Error())
 	}
+
+	opts := []trace.EventOption{
+		trace.WithAttributes(attribute.String("id", ans.Id)),
+	}
+	span2.AddEvent("successfully finished Create", opts...)
+	span2.End()
 
 	return ans, nil
 }

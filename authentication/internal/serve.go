@@ -13,9 +13,12 @@ import (
 	"github.com/d2jvkpn/go-web/pkg/cloud_native"
 	"github.com/d2jvkpn/go-web/pkg/misc"
 	"github.com/d2jvkpn/go-web/pkg/wrap"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -27,28 +30,14 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (
 		port        int
 		listener    net.Listener
 		grpcSrv     *grpc.Server
-		interceptor *models.Interceptor
 		closeTracer func()
 	)
 
 	settings.Logger = wrap.NewLogger("logs/authentication.log", zapcore.InfoLevel, 256, nil)
 	_Logger = settings.Logger.Named("server")
-	_Logger.Info("Server is starting", zap.Any("meta", meta))
 
 	enableOtel = settings.Config.GetBool("opentelemetry.enable")
-	interceptor = models.NewInterceptor(_Logger.Named("grpc"))
-
-	options := make([]grpc.ServerOption, 0, 4)
-	if enableOtel {
-		options = append(
-			options,
-			grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
-			grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
-		)
-	}
-	options = append(options, interceptor.Unary(), interceptor.Stream())
-
-	grpcSrv = grpc.NewServer(options...)
+	grpcSrv = grpc.NewServer(loadInterceptors(enableOtel)...)
 
 	srv := models.NewServer()
 	RegisterAuthServiceServer(grpcSrv, srv)
@@ -78,11 +67,12 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (
 	// TODO: ?? close connection with database
 
 	if enableOtel {
-		if closeTracer, err = loadOtel(); err != nil {
+		if closeTracer, err = loadOtel(settings.Config); err != nil {
 			return nil, err
 		}
 	}
 
+	_Logger.Info("Server is starting", zap.Any("meta", meta), zap.Bool("enableOtel", enableOtel))
 	go func() {
 		var err error
 		err = grpcSrv.Serve(listener)
@@ -92,7 +82,7 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (
 	shutdown = func() {
 		_Logger.Warn("Server is shutting down")
 		grpcSrv.GracefulStop()
-		if closeTracer != nil {
+		if enableOtel { // closeTracer != nil
 			closeTracer()
 		}
 	}
@@ -100,12 +90,32 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (
 	return shutdown, nil
 }
 
-func loadOtel() (closeTracer func(), err error) {
+func loadInterceptors(enableOtel bool) []grpc.ServerOption {
+	interceptor := models.NewInterceptor(_Logger.Named("grpc"))
+
+	uIntes := make([]grpc.UnaryServerInterceptor, 0, 2)
+	sIntes := make([]grpc.StreamServerInterceptor, 0, 2)
+
+	if enableOtel {
+		uIntes = append(uIntes, otelgrpc.UnaryServerInterceptor())
+		sIntes = append(sIntes, otelgrpc.StreamServerInterceptor())
+	}
+	// grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+	// grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
+	uIntes = append(uIntes, interceptor.Unary())
+	sIntes = append(sIntes, interceptor.Stream())
+
+	uInte := grpc_middleware.ChainUnaryServer(uIntes...)
+	sInte := grpc_middleware.ChainStreamServer(sIntes...)
+	return []grpc.ServerOption{grpc.UnaryInterceptor(uInte), grpc.StreamInterceptor(sInte)}
+}
+
+func loadOtel(vc *viper.Viper) (closeTracer func(), err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	str := settings.Config.GetString("opentelemetry.address")
-	secure := settings.Config.GetBool("opentelemetry.secure")
+	str := vc.GetString("opentelemetry.address")
+	secure := vc.GetBool("opentelemetry.secure")
 
 	closeTracer, err = cloud_native.LoadTracer(ctx, str, settings.App, secure)
 	if err != nil {

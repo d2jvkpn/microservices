@@ -8,20 +8,21 @@ import (
 	"testing"
 
 	"github.com/d2jvkpn/go-web/pkg/misc"
+	"github.com/d2jvkpn/go-web/pkg/orm"
 	"github.com/spf13/viper"
 )
 
 var (
-	testAddr string          = "127.0.0.1:20001"
-	testFlag *flag.FlagSet   = nil
-	testCtx  context.Context = context.Background()
+	testAddr   string          = "127.0.0.1:20001"
+	testFlag   *flag.FlagSet   = nil
+	testCtx    context.Context = context.Background()
+	testConfig *viper.Viper
 )
 
 func TestMain(m *testing.M) {
 	var (
 		config string
 		err    error
-		vc     *viper.Viper
 	)
 
 	testFlag = flag.NewFlagSet("testFlag", flag.ExitOnError)
@@ -43,19 +44,19 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	vc = viper.New()
-	vc.SetConfigName("test config")
-	vc.SetConfigFile(config)
+	testConfig = viper.New()
+	testConfig.SetConfigName("test config")
+	testConfig.SetConfigFile(config)
 
-	if err = vc.ReadInConfig(); err != nil {
+	if err = testConfig.ReadInConfig(); err != nil {
 		return
 	}
 
-	dsn := vc.GetString("database.conn") + "/" + vc.GetString("database.db")
+	dsn := testConfig.GetString("database.conn") + "/" + testConfig.GetString("database.db")
 	if _DB, err = Connect(dsn, true); err != nil {
 		return
 	}
+	defer orm.CloseDB(_DB)
 
 	m.Run()
-
 }

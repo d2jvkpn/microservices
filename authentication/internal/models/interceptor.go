@@ -2,10 +2,11 @@ package models
 
 import (
 	"context"
-	// "fmt"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -20,8 +21,8 @@ func NewInterceptor(logger *zap.Logger) *Interceptor {
 	return &Interceptor{logger}
 }
 
-func (inte *Interceptor) Unary() grpc.ServerOption {
-	call := func(
+func (inte *Interceptor) Unary() grpc.UnaryServerInterceptor {
+	return func(
 		ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (
 		resp any, err error) {
 
@@ -49,11 +50,11 @@ func (inte *Interceptor) Unary() grpc.ServerOption {
 		return resp, err
 	}
 
-	return grpc.UnaryInterceptor(call)
+	// return grpc.UnaryInterceptor(call) // grpc.ServerOption
 }
 
-func (inte *Interceptor) Stream() grpc.ServerOption {
-	call := func(
+func (inte *Interceptor) Stream() grpc.StreamServerInterceptor {
+	return func(
 		srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler,
 	) (err error) {
 
@@ -70,16 +71,18 @@ func (inte *Interceptor) Stream() grpc.ServerOption {
 		}
 
 		err = handler(srv, ss)
+		latency := fmt.Sprintf("%s", time.Since(start))
+
 		if err == nil {
-			inte.logger.Info(info.FullMethod, zap.Duration("latency", time.Since(start)))
+			inte.logger.Info(info.FullMethod, zap.String("latency", latency))
 		} else {
 			inte.logger.Error(
-				info.FullMethod, zap.Duration("latency", time.Since(start)), zap.Any("error", err),
+				info.FullMethod, zap.String("latency", latency), zap.Any("error", err),
 			)
 		}
 
 		return err
 	}
 
-	return grpc.StreamInterceptor(call)
+	// return grpc.StreamInterceptor(call) // grpc.ServerOption
 }

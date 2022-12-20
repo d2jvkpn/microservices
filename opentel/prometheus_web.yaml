@@ -1,0 +1,3 @@
+# Username: prometheus, Password: YourPassword
+basic_auth_users:
+  prometheus: $2b$12$JFUGzugFLvJHn5UNgv0PwO3XvFprVCcuiGOZX9Fu4RR6JqVimRX26

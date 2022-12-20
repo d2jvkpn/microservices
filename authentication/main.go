@@ -62,8 +62,17 @@ func main() {
 
 		flag.PrintDefaults()
 
-		fmt.Fprintf(output, "\nConfig template:\n```yaml\n%s```\n", project.GetString("config"))
-		fmt.Fprintf(output, "\nConsul template:\n```yaml\n%s```\n", wrap.ConsulConfigDemo())
+		fmt.Fprintf(
+			output,
+			"\nConfig template(configs/local.yaml):\n```yaml\n%s```\n",
+			project.GetString("config"),
+		)
+
+		fmt.Fprintf(
+			output,
+			"\nConsul template(configs/consul.yaml):\n```yaml\n%s```\n",
+			wrap.ConsulConfigDemo(),
+		)
 	}
 	flag.Parse()
 
