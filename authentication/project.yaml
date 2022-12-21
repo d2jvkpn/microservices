@@ -10,6 +10,6 @@ config: |
     address: 127.0.0.1:4317
     secure: false
 
-  database:
+  postgres:
     conn: postgres://USER:PASSWORD@IP:PORT
     db: authentication

@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	dsn := testConfig.GetString("database.conn") + "/" + testConfig.GetString("database.db")
+	dsn := testConfig.GetString("postgres.conn") + "/" + testConfig.GetString("postgres.db")
 	if _DB, err = Connect(dsn, true); err != nil {
 		return
 	}

@@ -33,8 +33,8 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 	)
 
 	// database
-	dsn := settings.Config.GetString("database.conn") + "/" +
-		settings.Config.GetString("database.db")
+	dsn := settings.Config.GetString("postgres.conn") + "/" +
+		settings.Config.GetString("postgres.db")
 
 	if _DB, err = models.Connect(dsn, !settings.Release); err != nil {
 		return err
