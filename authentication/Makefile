@@ -1,12 +1,12 @@
-gitBranch = $(shell git rev-parse --abbrev-ref HEAD)
-gitTime = $(shell date +'%FT%T%:z')
+at = $(shell date +'%FT%T%:z')
 
 #### cmd
 build:
-	echo ">>> git branch: ${gitBranch}, git time: ${gitTime}"
+	echo ">>> ${at}"
 	bash scripts/go_build.sh authentication
 	ls -lh target/authentication
 
 run:
+	echo ">>> ${at}"
 	bash scripts/go_build.sh authentication
 	./target/authentication
