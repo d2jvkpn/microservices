@@ -34,6 +34,7 @@ services:
     image: prom/prometheus:main
     container_name: opentel-prometheus
     restart: always
+    user: root
     volumes:
     - ./prometheus_config.yaml:/etc/prometheus/prometheus_config.yaml
     - ./prometheus_web.yaml:/etc/prometheus/prometheus_web.yaml

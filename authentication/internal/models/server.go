@@ -225,6 +225,11 @@ func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err e
 func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 	ans *GetOrUpdateA, err error) {
 
+	var (
+		bts   []byte
+		event string
+	)
+
 	ans = &GetOrUpdateA{
 		Status: "",
 		Msg:    &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
@@ -235,16 +240,33 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
 
-	tx := _DB.WithContext(ctx).Table("users").Where("id = ?", in.Id).Limit(1)
-
-	switch {
-	case in.Password != "" && in.Status != "":
+	if in.Password != "" && in.Status != "" {
 		ans.Msg = &Msg{
 			Code: -1, HttpCode: http.StatusBadRequest,
 			Msg: "don't pass both password and status",
 		}
-		err = status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
+		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
+	}
+
+	opts := []trace.EventOption{
+		trace.WithAttributes(attribute.String("id", in.Id)),
+	}
+	tracer := otel.Tracer(settings.App)
+	_, span := tracer.Start(ctx, "models.GetOrUpdate")
+	defer func() {
+		if err == nil {
+			span.AddEvent(fmt.Sprintf("successfully finished to %s", event), opts...)
+		} else {
+			span.AddEvent(fmt.Sprintf("failed to %s: %v", event, err), opts...)
+		}
+		span.End()
+	}()
+
+	tx := _DB.WithContext(ctx).Table("users").Where("id = ?", in.Id).Limit(1)
+
+	switch {
 	case in.Password == "" && in.Status == "":
+		event = "get"
 		if err = tx.Pluck("status", &ans.Status).Error; err == nil {
 			break
 		}
@@ -259,7 +281,7 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 			err = status.Errorf(codes.Internal, err.Error())
 		}
 	case in.Password != "":
-		var bts []byte
+		event = "update password"
 		if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
 			ans.Msg = &Msg{
 				Code:     2,
@@ -279,6 +301,7 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 			err = status.Errorf(codes.Internal, err.Error())
 		}
 	default: // status != ""
+		event = "update status"
 		if err = tx.Update("status", in.Status).Error; err != nil {
 			ans.Msg = &Msg{
 				Code:     4,
