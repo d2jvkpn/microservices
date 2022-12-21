@@ -58,17 +58,17 @@ func TestClient(t *testing.T) {
 
 	cAns, err = client.Create(testCtx, cIn)
 	NoError(t, err)
-	log.Printf("~~~ Create: %+v\n", cAns)
+	log.Printf("Create: %+v\n", cAns)
 
 	vIn = &VerifyQ{Id: cAns.Id, Password: cIn.Password}
 	vAns, err = client.Verify(testCtx, vIn)
 	NoError(t, err)
-	log.Printf("~~~ Verify: %+v\n", vAns)
+	log.Printf("Verify: %+v\n", vAns)
 
 	guq = &GetOrUpdateQ{Id: cAns.Id}
 	gua, err = client.GetOrUpdate(testCtx, guq)
 	NoError(t, err)
-	log.Printf("~~~ GetOrUpdate: %+v\n", gua)
+	log.Printf("GetOrUpdate: %+v\n", gua)
 
 	guq = &GetOrUpdateQ{Id: cAns.Id, Status: "blocked"}
 	_, err = client.GetOrUpdate(testCtx, guq)

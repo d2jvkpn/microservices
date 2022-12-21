@@ -11,7 +11,7 @@ exporters:
   logging:
 
   jaeger:
-    endpoint: jaeger:14250
+    endpoint: otel-jaeger:14250
     tls: { insecure: true }
 
 processors:

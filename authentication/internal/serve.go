@@ -132,33 +132,47 @@ func setupOtel(vc *viper.Viper) (closeTracer func(), err error) {
 func Shutdown() {
 	var err error
 
+	errorf := func(format string, a ...any) {
+		if _Logger == nil {
+			return
+		}
+		_Logger.Error(fmt.Sprintf(format, a...))
+	}
+
+	infof := func(format string, a ...any) {
+		if _Logger == nil {
+			return
+		}
+		_Logger.Info(fmt.Sprintf(format, a...))
+	}
+
 	if _ConsulClient != nil && _ConsulClient.Registry {
 		if err = _ConsulClient.Deregister(); err != nil {
-			_Logger.Error(fmt.Sprintf("consul deregister: %v", err))
+			errorf("consul deregister: %v", err)
 		} else {
-			_Logger.Info("consul deregister")
+			infof("consul deregister")
 		}
 	}
 
 	if _GrpcServer != nil {
-		_Logger.Info("stop grpc server")
+		infof("stop grpc server")
 		_GrpcServer.GracefulStop()
 	}
 
 	if _CloseTracer != nil {
-		_Logger.Info("close tracer")
+		infof("close tracer")
 		_CloseTracer()
 	}
 
 	if _DB != nil {
 		if err = orm.CloseDB(_DB); err != nil {
-			_Logger.Error(fmt.Sprintf("close database: %v", err))
+			errorf(fmt.Sprintf("close database: %v", err))
 		} else {
-			_Logger.Info("close database")
+			infof("close database")
 		}
 	}
 
-	_Logger.Info("close logger")
+	infof("close logger")
 	if settings.Logger != nil {
 		settings.Logger.Down()
 	}

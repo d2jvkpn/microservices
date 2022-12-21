@@ -4,7 +4,7 @@ services:
   # Jaeger
   jaeger-all-in-one:
     image: jaegertracing/all-in-one:latest
-    container_name: jaeger
+    container_name: otel-jaeger
     # restart: always
     networks: [opentel]
     ports:
@@ -16,7 +16,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector:latest
     container_name: otel-collector
-    # restart: always
+    restart: always
     depends_on: [jaeger-all-in-one]
     volumes:
     - ./otel-collector_config.yaml:/etc/otel-collector_config.yaml
@@ -32,11 +32,12 @@ services:
 
   prometheus:
     image: prom/prometheus:main
-    container_name: prometheus
-    # restart: always
+    container_name: otel-prometheus
+    restart: always
     volumes:
     - ./prometheus_config.yaml:/etc/prometheus/prometheus_config.yaml
     - ./prometheus_web.yaml:/etc/prometheus/prometheus_web.yaml
+    - prometheus:/prometheus/data
     networks: [opentel]
     ports: ["9090:9090"]
     command:
@@ -46,6 +47,10 @@ services:
     # - '--storage.tsdb.path=/prometheus/data'
     - '--web.console.libraries=/usr/share/prometheus/console_libraries'
     - '--web.console.templates=/usr/share/prometheus/consoles'
+
+volumes:
+  # opentel_prometheus
+  prometheus:
 
 networks:
   opentel:
