@@ -4,7 +4,7 @@ services:
   # Jaeger
   jaeger-all-in-one:
     image: jaegertracing/all-in-one:latest
-    container_name: otel-jaeger
+    container_name: opentel-jaeger
     # restart: always
     networks: [opentel]
     ports:
@@ -15,7 +15,7 @@ services:
   # Collector
   otel-collector:
     image: otel/opentelemetry-collector:latest
-    container_name: otel-collector
+    container_name: opentel-collector
     restart: always
     depends_on: [jaeger-all-in-one]
     volumes:
@@ -32,7 +32,7 @@ services:
 
   prometheus:
     image: prom/prometheus:main
-    container_name: otel-prometheus
+    container_name: opentel-prometheus
     restart: always
     volumes:
     - ./prometheus_config.yaml:/etc/prometheus/prometheus_config.yaml
