@@ -2,7 +2,7 @@ package models
 
 import (
 	"context"
-	// "fmt"
+	"fmt"
 	"net/http"
 
 	"authentication/internal/settings"
@@ -144,9 +144,20 @@ func createGenerateFromPassword(ctx context.Context, password string, ans *Creat
 }
 
 func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
+	opts := []trace.EventOption{
+		trace.WithAttributes(attribute.String("id", ans.Id)),
+	}
+
 	tracer := otel.Tracer(settings.App)
 	_, span := tracer.Start(ctx, "postgres.Insert")
-	defer span.End()
+	defer func() {
+		if err == nil {
+			span.AddEvent("successfully finished Create", opts...)
+		} else {
+			span.AddEvent(fmt.Sprintf("failed to Create: %v", err), opts...)
+		}
+		span.End()
+	}()
 
 	if traceId := span.SpanContext().TraceID(); traceId.IsValid() {
 		logger := settings.Logger.Named("trace")
@@ -168,11 +179,6 @@ func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
 
 		return status.Errorf(codes.Internal, err.Error())
 	}
-
-	opts := []trace.EventOption{
-		trace.WithAttributes(attribute.String("id", ans.Id)),
-	}
-	span.AddEvent("successfully finished Create", opts...)
 
 	return nil
 }
