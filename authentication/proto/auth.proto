@@ -5,9 +5,8 @@ package proto;
 option go_package="./proto";
 
 message Msg {
-	int32  code      = 1;
-	uint32 http_code = 2;
-	string msg       = 3;
+	uint32 http_code = 1;
+	string msg       = 2;
 }
 
 message CreateQ {

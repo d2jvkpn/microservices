@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"authentication/internal/settings"
+	"github.com/d2jvkpn/microservices/authentication/internal/settings"
 
 	"go.uber.org/zap"
 

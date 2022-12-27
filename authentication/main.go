@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"authentication/internal"
+	"github.com/d2jvkpn/microservices/authentication/internal"
 
 	"github.com/d2jvkpn/go-web/pkg/misc"
 	"github.com/d2jvkpn/go-web/pkg/wrap"

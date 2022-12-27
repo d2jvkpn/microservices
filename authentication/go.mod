@@ -1,4 +1,4 @@
-module authentication
+module github.com/d2jvkpn/microservices/authentication
 
 go 1.19
 

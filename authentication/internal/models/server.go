@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"authentication/internal/settings"
-	. "authentication/proto"
+	"github.com/d2jvkpn/microservices/authentication/internal/settings"
+	. "github.com/d2jvkpn/microservices/authentication/proto"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -41,18 +41,17 @@ func (srv *Server) Create_v0(ctx context.Context, in *CreateQ) (ans *CreateA, er
 
 	ans = &CreateA{
 		Id:  "",
-		Msg: &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+		Msg: &Msg{HttpCode: http.StatusOK, Msg: "ok"},
 	}
 
 	if in.Password == "" {
-		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid password"}
+		ans.Msg = &Msg{HttpCode: http.StatusBadRequest, Msg: "invalid password"}
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
 	// TODO: password validation
 
 	if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
 		ans.Msg = &Msg{
-			Code:     1,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to generate from password",
 		}
@@ -64,7 +63,6 @@ func (srv *Server) Create_v0(ctx context.Context, in *CreateQ) (ans *CreateA, er
 		Pluck("id", &ans.Id).Error
 	if err != nil {
 		ans.Msg = &Msg{
-			Code:     2,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to insert a record",
 		}
@@ -81,11 +79,11 @@ func (srv *Server) Create(ctx context.Context, in *CreateQ) (ans *CreateA, err e
 
 	ans = &CreateA{
 		Id:  "",
-		Msg: &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+		Msg: &Msg{HttpCode: http.StatusOK, Msg: "ok"},
 	}
 
 	if in.Password == "" {
-		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid password"}
+		ans.Msg = &Msg{HttpCode: http.StatusBadRequest, Msg: "invalid password"}
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
 	// TODO: password validation
@@ -133,7 +131,6 @@ func createGenerateFromPassword(ctx context.Context, password string, ans *Creat
 
 	if bts, err = bcrypt.GenerateFromPassword([]byte(password), _BcryptCost); err != nil {
 		ans.Msg = &Msg{
-			Code:     1,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to generate from password",
 		}
@@ -172,7 +169,6 @@ func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
 		Pluck("id", &ans.Id).Error
 	if err != nil {
 		ans.Msg = &Msg{
-			Code:     2,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to insert a record",
 		}
@@ -185,7 +181,7 @@ func createInsert(ctx context.Context, bts []byte, ans *CreateA) (err error) {
 
 func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err error) {
 	if in.Id == "" || in.Password == "" {
-		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid id or password"}
+		ans.Msg = &Msg{HttpCode: http.StatusBadRequest, Msg: "invalid id or password"}
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
 
@@ -193,7 +189,7 @@ func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err e
 
 	ans = &VerifyA{
 		Status: "",
-		Msg:    &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+		Msg:    &Msg{HttpCode: http.StatusOK, Msg: "ok"},
 	}
 
 	err = _DB.WithContext(ctx).Table("users").
@@ -201,7 +197,6 @@ func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err e
 		Select("bah, status").Find(&user).Error
 	if err != nil {
 		ans.Msg = &Msg{
-			Code:     1,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "failed to retrieve",
 		}
@@ -210,7 +205,6 @@ func (srv *Server) Verify(ctx context.Context, in *VerifyQ) (ans *VerifyA, err e
 
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Bah), []byte(in.Password)); err != nil {
 		ans.Msg = &Msg{
-			Code:     2,
 			HttpCode: http.StatusInternalServerError,
 			Msg:      "compare password failed",
 		}
@@ -232,18 +226,18 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 
 	ans = &GetOrUpdateA{
 		Status: "",
-		Msg:    &Msg{Code: 0, HttpCode: http.StatusOK, Msg: "ok"},
+		Msg:    &Msg{HttpCode: http.StatusOK, Msg: "ok"},
 	}
 
 	if in.Id == "" {
-		ans.Msg = &Msg{Code: -1, HttpCode: http.StatusBadRequest, Msg: "invalid id"}
+		ans.Msg = &Msg{HttpCode: http.StatusBadRequest, Msg: "invalid id"}
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
 
 	if in.Password != "" && in.Status != "" {
 		ans.Msg = &Msg{
-			Code: -1, HttpCode: http.StatusBadRequest,
-			Msg: "don't pass both password and status",
+			HttpCode: http.StatusBadRequest,
+			Msg:      "don't pass both password and status",
 		}
 		return ans, status.Errorf(codes.InvalidArgument, ans.Msg.Msg)
 	}
@@ -272,11 +266,11 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 		}
 
 		if err.Error() == "record not found" {
-			ans.Msg.Code, ans.Msg.Msg = -2, "failed to retrieve"
+			ans.Msg.Msg = "failed to retrieve"
 			ans.Msg.HttpCode = http.StatusNotFound
 			err = status.Errorf(codes.NotFound, err.Error())
 		} else {
-			ans.Msg.Code, ans.Msg.Msg = 1, "record not found"
+			ans.Msg.Msg = "record not found"
 			ans.Msg.HttpCode = http.StatusInternalServerError
 			err = status.Errorf(codes.Internal, err.Error())
 		}
@@ -284,7 +278,6 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 		event = "update password"
 		if bts, err = bcrypt.GenerateFromPassword([]byte(in.Password), _BcryptCost); err != nil {
 			ans.Msg = &Msg{
-				Code:     2,
 				HttpCode: http.StatusInternalServerError,
 				Msg:      "failed to generate from password",
 			}
@@ -294,7 +287,6 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 
 		if err = tx.Update("bah", string(bts)).Error; err != nil {
 			ans.Msg = &Msg{
-				Code:     3,
 				HttpCode: http.StatusInternalServerError,
 				Msg:      "failed to update",
 			}
@@ -304,7 +296,6 @@ func (srv *Server) GetOrUpdate(ctx context.Context, in *GetOrUpdateQ) (
 		event = "update status"
 		if err = tx.Update("status", in.Status).Error; err != nil {
 			ans.Msg = &Msg{
-				Code:     4,
 				HttpCode: http.StatusInternalServerError,
 				Msg:      "failed to update",
 			}

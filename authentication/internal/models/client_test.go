@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"authentication/internal/settings"
-	. "authentication/proto"
+	"github.com/d2jvkpn/microservices/authentication/internal/settings"
+	. "github.com/d2jvkpn/microservices/authentication/proto"
 
 	"github.com/d2jvkpn/go-web/pkg/cloud_native"
 	"github.com/spf13/viper"
