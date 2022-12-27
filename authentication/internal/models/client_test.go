@@ -16,6 +16,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 func TestClient(t *testing.T) {
@@ -84,7 +85,7 @@ func testSetupOtel(vc *viper.Viper) (closeTracer func(), err error) {
 
 	closeTracer, err = cloud_native.LoadTracer(ctx, str, settings.App, secure)
 	if err != nil {
-		return nil, fmt.Errorf("cloud_native.LoadTracer: %s, %w", str, err)
+		return nil, fmt.Errorf("cloud_native.LoadTracer: %s, %w, %d", str, err, status.Code(err))
 	}
 
 	return closeTracer, nil
