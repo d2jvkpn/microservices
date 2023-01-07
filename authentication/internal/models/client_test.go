@@ -1,7 +1,6 @@
 package models
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -77,13 +76,10 @@ func TestClient(t *testing.T) {
 }
 
 func testSetupOtel(vc *viper.Viper) (closeTracer func(), err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
 	str := vc.GetString("opentelemetry.address")
 	secure := vc.GetBool("opentelemetry.secure")
 
-	closeTracer, err = cloud_native.LoadTracer(ctx, str, settings.App, secure)
+	closeTracer, err = cloud_native.LoadTracer(str, settings.App, 3*time.Second, secure)
 	if err != nil {
 		return nil, fmt.Errorf("cloud_native.LoadTracer: %s, %w, %d", str, err, status.Code(err))
 	}
