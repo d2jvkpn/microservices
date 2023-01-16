@@ -25,10 +25,9 @@ import (
 // database => tracing => grpc.Server => service registry => logger
 func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error) {
 	var (
-		enableOtel   bool
-		enableConsul bool
-		port         int
-		listener     net.Listener
+		otelEnabled   bool
+		consulEnabled bool
+		listener      net.Listener
 	)
 
 	// database
@@ -40,11 +39,8 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 	}
 
 	// opentelemetry
-	enableOtel = settings.Config.GetBool("opentelemetry.enable")
-	if enableOtel {
-		if _CloseTracer, err = setupOtel(settings.Config); err != nil {
-			return err
-		}
+	if otelEnabled, _CloseTracer, err = setupOtel(settings.Config); err != nil {
+		return err
 	}
 
 	// grpc
@@ -52,20 +48,13 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 		return err
 	}
 
-	_GrpcServer = grpc.NewServer(setupInterceptors(enableOtel)...)
+	_GrpcServer = grpc.NewServer(setupInterceptors(otelEnabled)...)
 	srv := models.NewServer()
 	RegisterAuthServiceServer(_GrpcServer, srv)
 
 	// consul
-	enableConsul = _ConsulClient != nil && _ConsulClient.Registry
-	if enableConsul {
-		if port, err = misc.PortFromAddr(addr); err != nil {
-			return err
-		}
-
-		if err = _ConsulClient.GRPCRegister(port, false, _GrpcServer); err != nil {
-			return err
-		}
+	if consulEnabled, err = setupConsul(addr); err != nil {
+		return err
 	}
 
 	// logger
@@ -78,8 +67,8 @@ func ServeAsync(addr string, meta map[string]any, errch chan<- error) (err error
 
 	_Logger.Info(
 		"Server is starting",
-		zap.Bool("enableOtel", enableOtel),
-		zap.Bool("enableConsul", enableConsul),
+		zap.Bool("otelEnabled", otelEnabled),
+		zap.Bool("consulEnabled", consulEnabled),
 		zap.Any("meta", meta),
 	)
 
@@ -112,16 +101,38 @@ func setupInterceptors(enableOtel bool) []grpc.ServerOption {
 	return []grpc.ServerOption{grpc.UnaryInterceptor(uInte), grpc.StreamInterceptor(sInte)}
 }
 
-func setupOtel(vc *viper.Viper) (closeTracer func(), err error) {
+func setupOtel(vc *viper.Viper) (enabled bool, closeTracer func(), err error) {
+	if !vc.GetBool("opentelemetry.enable") {
+		return false, nil, nil
+	}
+
 	str := vc.GetString("opentelemetry.address")
 	secure := vc.GetBool("opentelemetry.secure")
 
 	closeTracer, err = cloud_native.LoadTracer(str, settings.App, 3*time.Second, secure)
 	if err != nil {
-		return nil, fmt.Errorf("cloud_native.LoadTracer: %s, %w", str, err)
+		return true, nil, fmt.Errorf("cloud_native.LoadTracer: %s, %w", str, err)
 	}
 
-	return closeTracer, nil
+	return true, closeTracer, nil
+}
+
+func setupConsul(addr string) (enabled bool, err error) {
+	var port int
+
+	if enabled = _ConsulClient != nil && _ConsulClient.Registry; !enabled {
+		return false, nil
+	}
+
+	if port, err = misc.PortFromAddr(addr); err != nil {
+		return true, err
+	}
+
+	if err = _ConsulClient.GRPCRegister(port, false, _GrpcServer); err != nil {
+		return true, err
+	}
+
+	return true, nil
 }
 
 // service registry => grpc.Server => tracing => database => logger
